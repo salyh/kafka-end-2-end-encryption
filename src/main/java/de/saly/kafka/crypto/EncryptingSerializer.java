@@ -44,7 +44,7 @@ import org.apache.kafka.common.serialization.Serializer;
  * </ul>
  * 
  * RSA public/private keypair can be generated with<br>
- * <em>java org.apache.kafka.common.serialization.RsaKeyGen <keysize in bits></em>
+ * <em>java org.apache.kafka.common.serialization.RsaKeyGen &lt;keysize in bits&gt;</em>
  * 
  * <p>
  * <b>Note</b>: As Producers are multithreading-safe this serializer is also thread-safe
