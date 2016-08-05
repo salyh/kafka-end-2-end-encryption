@@ -45,7 +45,7 @@
 <a class="jxr_linenumber" name="L37" href="#L37">37</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String CRYPTO_AES_KEY_LEN = <span class="jxr_string">"crypto.aes.key_len"</span>;
 <a class="jxr_linenumber" name="L38" href="#L38">38</a>      <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> byte[] MAGIC_BYTES = <strong class="jxr_keyword">new</strong> byte[] { (byte) 0xDF, (byte) 0xBB };
 <a class="jxr_linenumber" name="L39" href="#L39">39</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String DEFAULT_TRANSFORMATION = <span class="jxr_string">"AES/CBC/PKCS5Padding"</span>; <em class="jxr_comment">//TODO allow other like GCM</em>
-<a class="jxr_linenumber" name="L40" href="#L40">40</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Map&lt;String, byte[]&gt; aesKeyCache = <strong class="jxr_keyword">new</strong> HashMap&lt;&gt;();
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Map&lt;String, byte[]&gt; aesKeyCache = <strong class="jxr_keyword">new</strong> HashMap&lt;String, byte[]&gt;();
 <a class="jxr_linenumber" name="L41" href="#L41">41</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> MAGIC_BYTES_LENGTH = MAGIC_BYTES.length;
 <a class="jxr_linenumber" name="L42" href="#L42">42</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> HEADER_LENGTH = MAGIC_BYTES_LENGTH + 3;
 <a class="jxr_linenumber" name="L43" href="#L43">43</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String AES = <span class="jxr_string">"AES"</span>;
@@ -253,12 +253,12 @@
 <a class="jxr_linenumber" name="L245" href="#L245">245</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> KafkaException(<span class="jxr_string">"No value for '"</span> + key + <span class="jxr_string">"' found"</span>);
 <a class="jxr_linenumber" name="L246" href="#L246">246</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (val instanceof String) {
 <a class="jxr_linenumber" name="L247" href="#L247">247</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L248" href="#L248">248</a>                 <strong class="jxr_keyword">return</strong> Utils.newInstance((String) val, klass);
-<a class="jxr_linenumber" name="L249" href="#L249">249</a>             } <strong class="jxr_keyword">catch</strong> (ClassNotFoundException e) {
+<a class="jxr_linenumber" name="L248" href="#L248">248</a>                 <strong class="jxr_keyword">return</strong> (T) Utils.newInstance(Class.forName((String) val));
+<a class="jxr_linenumber" name="L249" href="#L249">249</a>             } <strong class="jxr_keyword">catch</strong> (Exception e) {
 <a class="jxr_linenumber" name="L250" href="#L250">250</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> KafkaException(e);
 <a class="jxr_linenumber" name="L251" href="#L251">251</a>             }
 <a class="jxr_linenumber" name="L252" href="#L252">252</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (val instanceof Class) {
-<a class="jxr_linenumber" name="L253" href="#L253">253</a>             <strong class="jxr_keyword">return</strong> Utils.newInstance((Class&lt;T&gt;) val);
+<a class="jxr_linenumber" name="L253" href="#L253">253</a>             <strong class="jxr_keyword">return</strong> (T) Utils.newInstance((Class&lt;T&gt;) val);
 <a class="jxr_linenumber" name="L254" href="#L254">254</a>         } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="L255" href="#L255">255</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> KafkaException(<span class="jxr_string">"Unexpected type '"</span> + val.getClass() + <span class="jxr_string">"' for '"</span> + key + <span class="jxr_string">"'"</span>);
 <a class="jxr_linenumber" name="L256" href="#L256">256</a>         }

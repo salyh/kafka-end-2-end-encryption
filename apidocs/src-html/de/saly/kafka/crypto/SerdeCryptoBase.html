@@ -45,7 +45,7 @@
 <span class="sourceLineNo">037</span>    public static final String CRYPTO_AES_KEY_LEN = "crypto.aes.key_len";<a name="line.37"></a>
 <span class="sourceLineNo">038</span>    static final byte[] MAGIC_BYTES = new byte[] { (byte) 0xDF, (byte) 0xBB };<a name="line.38"></a>
 <span class="sourceLineNo">039</span>    protected static final String DEFAULT_TRANSFORMATION = "AES/CBC/PKCS5Padding"; //TODO allow other like GCM<a name="line.39"></a>
-<span class="sourceLineNo">040</span>    private static final Map&lt;String, byte[]&gt; aesKeyCache = new HashMap&lt;&gt;();<a name="line.40"></a>
+<span class="sourceLineNo">040</span>    private static final Map&lt;String, byte[]&gt; aesKeyCache = new HashMap&lt;String, byte[]&gt;();<a name="line.40"></a>
 <span class="sourceLineNo">041</span>    private static final int MAGIC_BYTES_LENGTH = MAGIC_BYTES.length;<a name="line.41"></a>
 <span class="sourceLineNo">042</span>    private static final int HEADER_LENGTH = MAGIC_BYTES_LENGTH + 3;<a name="line.42"></a>
 <span class="sourceLineNo">043</span>    private static final String AES = "AES";<a name="line.43"></a>
@@ -253,12 +253,12 @@
 <span class="sourceLineNo">245</span>            throw new KafkaException("No value for '" + key + "' found");<a name="line.245"></a>
 <span class="sourceLineNo">246</span>        } else if (val instanceof String) {<a name="line.246"></a>
 <span class="sourceLineNo">247</span>            try {<a name="line.247"></a>
-<span class="sourceLineNo">248</span>                return Utils.newInstance((String) val, klass);<a name="line.248"></a>
-<span class="sourceLineNo">249</span>            } catch (ClassNotFoundException e) {<a name="line.249"></a>
+<span class="sourceLineNo">248</span>                return (T) Utils.newInstance(Class.forName((String) val));<a name="line.248"></a>
+<span class="sourceLineNo">249</span>            } catch (Exception e) {<a name="line.249"></a>
 <span class="sourceLineNo">250</span>                throw new KafkaException(e);<a name="line.250"></a>
 <span class="sourceLineNo">251</span>            }<a name="line.251"></a>
 <span class="sourceLineNo">252</span>        } else if (val instanceof Class) {<a name="line.252"></a>
-<span class="sourceLineNo">253</span>            return Utils.newInstance((Class&lt;T&gt;) val);<a name="line.253"></a>
+<span class="sourceLineNo">253</span>            return (T) Utils.newInstance((Class&lt;T&gt;) val);<a name="line.253"></a>
 <span class="sourceLineNo">254</span>        } else {<a name="line.254"></a>
 <span class="sourceLineNo">255</span>            throw new KafkaException("Unexpected type '" + val.getClass() + "' for '" + key + "'");<a name="line.255"></a>
 <span class="sourceLineNo">256</span>        }<a name="line.256"></a>
