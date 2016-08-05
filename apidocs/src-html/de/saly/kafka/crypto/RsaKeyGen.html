@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Source code</title>
+<link rel="stylesheet" type="text/css" href="../../../../../stylesheet.css" title="Style">
+</head>
+<body>
+<div class="sourceContainer">
+<pre><span class="sourceLineNo">001</span>package de.saly.kafka.crypto;<a name="line.1"></a>
+<span class="sourceLineNo">002</span><a name="line.2"></a>
+<span class="sourceLineNo">003</span>import java.io.File;<a name="line.3"></a>
+<span class="sourceLineNo">004</span>import java.io.FileOutputStream;<a name="line.4"></a>
+<span class="sourceLineNo">005</span>import java.security.KeyPair;<a name="line.5"></a>
+<span class="sourceLineNo">006</span>import java.security.KeyPairGenerator;<a name="line.6"></a>
+<span class="sourceLineNo">007</span>import java.util.UUID;<a name="line.7"></a>
+<span class="sourceLineNo">008</span><a name="line.8"></a>
+<span class="sourceLineNo">009</span>public class RsaKeyGen {<a name="line.9"></a>
+<span class="sourceLineNo">010</span>    <a name="line.10"></a>
+<span class="sourceLineNo">011</span>    public static void main(String[] args) throws Exception {<a name="line.11"></a>
+<span class="sourceLineNo">012</span>        int keysize = (args != null &amp;&amp; args.length &gt; 0) ? Integer.parseInt(args[0]) : 2048;<a name="line.12"></a>
+<span class="sourceLineNo">013</span>        System.out.println("Keysize: "+keysize+" bits");<a name="line.13"></a>
+<span class="sourceLineNo">014</span>        String uuid = UUID.randomUUID().toString();<a name="line.14"></a>
+<span class="sourceLineNo">015</span>        File pubKey = new File("rsa_publickey_" + keysize + "_" + uuid);<a name="line.15"></a>
+<span class="sourceLineNo">016</span>        File privKey = new File("rsa_privatekey_" + keysize + "_" + uuid);<a name="line.16"></a>
+<span class="sourceLineNo">017</span><a name="line.17"></a>
+<span class="sourceLineNo">018</span>        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");<a name="line.18"></a>
+<span class="sourceLineNo">019</span>        keyGen.initialize(keysize);<a name="line.19"></a>
+<span class="sourceLineNo">020</span>        KeyPair pair = keyGen.genKeyPair();<a name="line.20"></a>
+<span class="sourceLineNo">021</span>        byte[] publicKey = pair.getPublic().getEncoded();<a name="line.21"></a>
+<span class="sourceLineNo">022</span>        byte[] privateKey = pair.getPrivate().getEncoded();<a name="line.22"></a>
+<span class="sourceLineNo">023</span><a name="line.23"></a>
+<span class="sourceLineNo">024</span>        FileOutputStream fout = new FileOutputStream(pubKey);<a name="line.24"></a>
+<span class="sourceLineNo">025</span>        fout.write(publicKey);<a name="line.25"></a>
+<span class="sourceLineNo">026</span>        fout.close();<a name="line.26"></a>
+<span class="sourceLineNo">027</span><a name="line.27"></a>
+<span class="sourceLineNo">028</span>        fout = new FileOutputStream(privKey);<a name="line.28"></a>
+<span class="sourceLineNo">029</span>        fout.write(privateKey);<a name="line.29"></a>
+<span class="sourceLineNo">030</span>        fout.close();<a name="line.30"></a>
+<span class="sourceLineNo">031</span><a name="line.31"></a>
+<span class="sourceLineNo">032</span>        System.out.println(pubKey.getAbsolutePath());<a name="line.32"></a>
+<span class="sourceLineNo">033</span>        System.out.println(privKey.getAbsolutePath());<a name="line.33"></a>
+<span class="sourceLineNo">034</span>    }<a name="line.34"></a>
+<span class="sourceLineNo">035</span>    <a name="line.35"></a>
+<span class="sourceLineNo">036</span>}<a name="line.36"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+</div>
+</body>
+</html>
