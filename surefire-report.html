@@ -96,6 +96,8 @@
 </li>
                                   <li>      <a href="apidocs/index.html"  title="JavaDocs">JavaDocs</a>
 </li>
+                                  <li>      <a href="testapidocs/index.html"  title="Test JavaDocs">Test JavaDocs</a>
+</li>
                                   <li>      <a href="surefire-report.html"  title="Surefire Report">Surefire Report</a>
 </li>
                                   <li>      <a href="xref/index.html"  title="Source Xref">Source Xref</a>
@@ -193,7 +195,7 @@
           <span class="icon-chevron-right"></span>
         Project Information</a>
                   </li>
-                                                                                                                                                                      
+                                                                                                                                                                                        
       <li>
   
                           <a href="project-reports.html" title="Project Reports">
@@ -220,6 +222,13 @@
                           <a href="apidocs/index.html" title="JavaDocs">
           <span class="none"></span>
         JavaDocs</a>
+            </li>
+                    
+      <li>
+  
+                          <a href="testapidocs/index.html" title="Test JavaDocs">
+          <span class="none"></span>
+        Test JavaDocs</a>
             </li>
                     
       <li class="active">
@@ -290,7 +299,8 @@ function toggleDisplay(elementId) {
 <div class="section">
 <h2><a name="Surefire_Report"></a>Surefire Report</h2></div>
 <div class="section">
-<h2><a name="Summary"></a>Summary</h2><a name="Summary"></a><br />
+<h2><a name="Summary"></a>Summary</h2><a name="Summary"></a>
+<p>[<a href="#Summary">Summary</a>] [<a href="#Package_List">Package List</a>] [<a href="#Test_Cases">Test Cases</a>]</p><br />
 <table border="1" class="table table-striped">
 <tr class="a">
 <th>Tests</th>
@@ -300,13 +310,93 @@ function toggleDisplay(elementId) {
 <th>Success Rate</th>
 <th>Time</th></tr>
 <tr class="b">
+<td>8</td>
 <td>0</td>
 <td>0</td>
 <td>0</td>
-<td>0</td>
-<td>0%</td>
-<td>0</td></tr></table><br />
+<td>100%</td>
+<td>2.845</td></tr></table><br />
 <p>Note: failures are anticipated and checked for with assertions while errors are unanticipated.</p><br /></div>
+<div class="section">
+<h2><a name="Package_List"></a>Package List</h2><a name="Package_List"></a>
+<p>[<a href="#Summary">Summary</a>] [<a href="#Package_List">Package List</a>] [<a href="#Test_Cases">Test Cases</a>]</p><br />
+<table border="1" class="table table-striped">
+<tr class="a">
+<th>Package</th>
+<th>Tests</th>
+<th>Errors </th>
+<th>Failures</th>
+<th>Skipped</th>
+<th>Success Rate</th>
+<th>Time</th></tr>
+<tr class="b">
+<td><a href="#de.saly.kafka.crypto">de.saly.kafka.crypto</a></td>
+<td>8</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100%</td>
+<td>2.845</td></tr></table><br />
+<p>Note: package statistics are not computed recursively, they only sum up all of its testsuites numbers.</p>
+<div class="section">
+<h3><a name="de.saly.kafka.crypto"></a>de.saly.kafka.crypto</h3><a name="de.saly.kafka.crypto"></a>
+<table border="1" class="table table-striped">
+<tr class="a">
+<th></th>
+<th>Class</th>
+<th>Tests</th>
+<th>Errors </th>
+<th>Failures</th>
+<th>Skipped</th>
+<th>Success Rate</th>
+<th>Time</th></tr>
+<tr class="b">
+<td><a href="#de.saly.kafka.cryptoEnDecryptionTest"><img src="images/icon_success_sml.gif" alt="" /></a></td>
+<td><a href="#de.saly.kafka.cryptoEnDecryptionTest">EnDecryptionTest</a></td>
+<td>8</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>100%</td>
+<td>2.845</td></tr></table></div><br /></div>
+<div class="section">
+<h2><a name="Test_Cases"></a>Test Cases</h2><a name="Test_Cases"></a>
+<p>[<a href="#Summary">Summary</a>] [<a href="#Package_List">Package List</a>] [<a href="#Test_Cases">Test Cases</a>]</p>
+<div class="section">
+<h3><a name="EnDecryptionTest"></a>EnDecryptionTest</h3><a name="de.saly.kafka.cryptoEnDecryptionTest"></a>
+<table border="1" class="table table-striped">
+<tr class="a">
+<td><img src="images/icon_success_sml.gif" alt="" /></td>
+<td><a name="TC_de.saly.kafka.crypto.EnDecryptionTest.testInvalidHashAlgo"></a>testInvalidHashAlgo</td>
+<td>0.153</td></tr>
+<tr class="b">
+<td><img src="images/icon_success_sml.gif" alt="" /></td>
+<td><a name="TC_de.saly.kafka.crypto.EnDecryptionTest.testSHA1"></a>testSHA1</td>
+<td>0.076</td></tr>
+<tr class="a">
+<td><img src="images/icon_success_sml.gif" alt="" /></td>
+<td><a name="TC_de.saly.kafka.crypto.EnDecryptionTest.testMD5_192"></a>testMD5_192</td>
+<td>0</td></tr>
+<tr class="b">
+<td><img src="images/icon_success_sml.gif" alt="" /></td>
+<td><a name="TC_de.saly.kafka.crypto.EnDecryptionTest.testSHA1_192"></a>testSHA1_192</td>
+<td>0</td></tr>
+<tr class="a">
+<td><img src="images/icon_success_sml.gif" alt="" /></td>
+<td><a name="TC_de.saly.kafka.crypto.EnDecryptionTest.testMultithreaded"></a>testMultithreaded</td>
+<td>0.307</td></tr>
+<tr class="b">
+<td><img src="images/icon_success_sml.gif" alt="" /></td>
+<td><a name="TC_de.saly.kafka.crypto.EnDecryptionTest.testAes256"></a>testAes256</td>
+<td>0</td></tr>
+<tr class="a">
+<td><img src="images/icon_success_sml.gif" alt="" /></td>
+<td><a name="TC_de.saly.kafka.crypto.EnDecryptionTest.testBasicStandard"></a>testBasicStandard</td>
+<td>0.027</td></tr>
+<tr class="b">
+<td><img src="images/icon_success_sml.gif" alt="" /></td>
+<td><a name="TC_de.saly.kafka.crypto.EnDecryptionTest.testInvalidKeySize"></a>testInvalidKeySize</td>
+<td>0</td></tr></table></div><br /></div>
                   </div>
             </div>
           </div>
