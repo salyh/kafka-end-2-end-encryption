@@ -290,6 +290,10 @@
 <li>AES key is attached in RSA encrypted form to every message</li>
   
 <li>Consumer detects if a message is encrypted and can therefore handle also unencrypted messages</li>
+  
+<li>No external dependencies</li>
+  
+<li>On modern hardware with recent Java installed AES will be computed directly on the CPU (via AES-NI)</li>
 </ul></div>
 <div class="section">
 <h2><a name="Get_it"></a>Get it</h2>
@@ -359,6 +363,9 @@ crypto.wrapped_deserializer: org.apache.kafka.common.serialization.StringDeseria
 crypto.rsa.privatekey.filepath: /opt/rsa_privatekey_2048_db484e3c-c3f5-4197-bb40-2f60c498b157
 </pre></div></div>
 <p>If you want also encrypt the key of the message use &#x201c;key.serializer&#x201d; and &#x201c;key.deserializer&#x201d; the same way.</p></div></div>
+<div class="section">
+<h2><a name="Limitations"></a>Limitations</h2>
+<p>Currently value and key wrapped serializer cannot be different.</p></div>
                   </div>
             </div>
           </div>
