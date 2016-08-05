@@ -49,9 +49,6 @@
                       <li>      <a href="index.html"  title="Home">Home</a>
 </li>
                   
-                      <li>      <a href=""  title="Download">Download</a>
-</li>
-                  
                       <li>      <a href="apidocs/index.html"  title="Javadoc">Javadoc</a>
 </li>
                   
@@ -108,14 +105,6 @@
             </li>
                           </ul>
       </li>
-                <li class="dropdown">
-        <a href="#" class="dropdown-toggle" data-toggle="dropdown">Security <b class="caret"></b></a>
-        <ul class="dropdown-menu">
-        
-                      <li>      <a href="security.html"  title="Report vulnerability">Report vulnerability</a>
-</li>
-                          </ul>
-      </li>
                   </ul>
           
           
@@ -164,13 +153,6 @@
   
             <a href="#"><span class="none"></span>Home</a>
           </li>
-                
-      <li>
-  
-                          <a href="" title="Download">
-          <span class="none"></span>
-        Download</a>
-            </li>
                 
       <li>
   
@@ -263,14 +245,6 @@
           <span class="icon-chevron-right"></span>
         Project Reports</a>
                   </li>
-                              <li class="nav-header">Security</li>
-                              
-      <li>
-  
-                          <a href="security.html" title="Report vulnerability">
-          <span class="none"></span>
-        Report vulnerability</a>
-            </li>
             </ul>
               
                 
@@ -292,7 +266,99 @@
         <div id="bodyColumn"  class="span10" >
                                   
             <h1>Kafka End2End encryption</h1>
-<p>no deps</p>
+<p>A small library with no external dependencies which provide transparent AES end-to-end encryption for Apache Kafka.</p>
+<div class="section">
+<h2><a name="Prerequisites"></a>Prerequisites</h2>
+
+<ul>
+  
+<li>Kafka client 0.8.2.0 or higher</li>
+  
+<li>Java 6 or higher</li>
+  
+<li>For AES 256 en-/decryption you have to install <a class="externalLink" href="http://www.oracle.com/technetwork/java/javase/overview/index.html">JCE Unlimited Strength Jurisdiction Policy Files</a></li>
+</ul></div>
+<div class="section">
+<h2><a name="Features"></a>Features</h2>
+
+<ul>
+  
+<li>Transparent encryption, will be configured as serializer/deserializer</li>
+  
+<li>End-to-end encryption of Kafka messages with random AES key(s)</li>
+  
+<li>AES key is attached in RSA encrypted form to every message</li>
+  
+<li>Consumer detects if a message is encrypted and can therefore handle also unencrypted messages</li>
+</ul></div>
+<div class="section">
+<h2><a name="Get_it"></a>Get it</h2>
+<div class="section">
+<h3><a name="via_Maven"></a>via Maven</h3>
+
+<div class="source">
+<div class="source"><pre class="prettyprint linenums">&lt;groupId&gt;de.saly&lt;/groupId&gt;
+&lt;artifactId&gt;kafka-end-2-end-encryption&lt;/artifactId&gt;
+&lt;version&gt;1.0.0&lt;/version&gt;
+</pre></div></div></div>
+<div class="section">
+<h3><a name="or_download_.jar_file"></a>or download .jar file</h3>
+<p><a class="externalLink" href="http://search.maven.org/#search%7Cga%7C1%7Ckafka-end-2-end-encryption">Here</a></p></div>
+<div class="section">
+<h3><a name="or_build_it_yourself"></a>or build it yourself</h3>
+
+<div class="source">
+<div class="source"><pre class="prettyprint linenums">mvn package
+</pre></div></div>
+<p>Include the library in the classpath of the producer or consumer.</p></div></div>
+<div class="section">
+<h2><a name="Configuration"></a>Configuration</h2>
+<p>This library provide a serializer and a deserializer which handles the encryption/decryption stuff and delegate the message then to an underlying serializer/deserializer. In other words: Your original serializer/deserializer will be wrapped with that one.</p>
+<div class="section">
+<h3><a name="Producer"></a>Producer</h3>
+
+<div class="source">
+<div class="source"><pre class="prettyprint linenums">crypto.wrapped_serializer: &lt;wrapped serializer&gt; #mandatory
+crypto.rsa.publickey.filepath: &lt;path&gt; #mandatory
+crypto.aes.key_len: 128 #optional
+crypto.hash_method: SHA-256 #optional
+</pre></div></div></div>
+<div class="section">
+<h3><a name="Consumer"></a>Consumer</h3>
+
+<div class="source">
+<div class="source"><pre class="prettyprint linenums">crypto.wrapped_deserializer: &lt;wrapped deserializer&gt; #mandatory
+crypto.rsa.privatekey.filepath: &lt;path&gt; #mandatory
+#If set to true then the original message will be returned on decrypt failure
+#If set to false (the default) an exception will be thrown on decrypt failure
+crypto.ignore_decrypt_failures: false #optional
+</pre></div></div></div></div>
+<div class="section">
+<h2><a name="Create_a_RSA_key_pair"></a>Create a RSA key pair</h2>
+
+<div class="source">
+<div class="source"><pre class="prettyprint linenums">java -cp kafka-end-2-end-encryption-1.0.0.jar de.saly.kafka.crypto.RsaKeyGen 2048
+</pre></div></div>
+<p>This creates a 2048-bit RSA key pair. The publickey is used on the consumer side to encrypt the AES key attached to every message. The privatekey is used on the consumer side to decrypt the AES key.</p></div>
+<div class="section">
+<h2><a name="Example"></a>Example</h2>
+<div class="section">
+<h3><a name="Producer"></a>Producer</h3>
+
+<div class="source">
+<div class="source"><pre class="prettyprint linenums">value.serializer: de.saly.kafka.crypto.EncryptingSerializer
+crypto.wrapped_serializer: org.apache.kafka.common.serialization.StringSerializer
+crypto.rsa.publickey.filepath: /opt/rsa_publickey_2048_db484e3c-c3f5-4197-bb40-2f60c498b157
+</pre></div></div></div>
+<div class="section">
+<h3><a name="Consumer"></a>Consumer</h3>
+
+<div class="source">
+<div class="source"><pre class="prettyprint linenums">value.deserializer: de.saly.kafka.crypto.DecryptingDeserializer
+crypto.wrapped_deserializer: org.apache.kafka.common.serialization.StringDeserializer
+crypto.rsa.privatekey.filepath: /opt/rsa_privatekey_2048_db484e3c-c3f5-4197-bb40-2f60c498b157
+</pre></div></div>
+<p>If you want also encrypt the key of the message use &#x201c;key.serializer&#x201d; and &#x201c;key.deserializer&#x201d; the same way.</p></div></div>
                   </div>
             </div>
           </div>
