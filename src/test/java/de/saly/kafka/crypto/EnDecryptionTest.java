@@ -126,8 +126,8 @@ public class EnDecryptionTest {
     }
     
     @Test
-    public void testMultithreadedInterval10() throws Exception {
-        testMultithreadedBasic(10);
+    public void testMultithreadedInterval1000() throws Exception {
+        testMultithreadedBasic(1000);
     }
     
     protected void testMultithreadedBasic(int msgInterval) throws Exception {
@@ -154,10 +154,10 @@ public class EnDecryptionTest {
                 @Override
                 public Exception call() throws Exception {
                     try {
+                        final Deserializer<String> deserializer = new DecryptingDeserializer<String>();
+                        deserializer.configure(config, false);
                         for(int i=0; i<1000; i++) {
                             final byte[] enc = serializer.serialize(TOPIC, str+i+Thread.currentThread().getName());
-                            final Deserializer<String> deserializer = new DecryptingDeserializer<String>();
-                            deserializer.configure(config, false);
                             assertEquals(str+i+Thread.currentThread().getName(), deserializer.deserialize(TOPIC, enc));
                         }
                         return null;

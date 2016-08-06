@@ -143,8 +143,7 @@ public abstract class SerdeCryptoBase {
         }
 
         private void newKey() throws Exception {
-            final ThreadAwareKeyInfo ki = new ThreadAwareKeyInfo(publicKey);
-            keyInfo.set(ki);
+            keyInfo.remove();
         }
 
         private byte[] aesEncrypt(byte[] plain) throws KafkaException {
