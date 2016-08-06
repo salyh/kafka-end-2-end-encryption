@@ -18,6 +18,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import javax.crypto.Cipher;
+
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -25,6 +27,7 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 public class EnDecryptionTest {
@@ -66,7 +69,8 @@ public class EnDecryptionTest {
 
     @Test
     public void testAes256() throws Exception {
-        //testBasic("", 256);
+        Assume.assumeTrue(Cipher.getMaxAllowedKeyLength("AES") >= 256);
+        testBasic("", 256);
     }
 
     @Test
@@ -76,12 +80,17 @@ public class EnDecryptionTest {
 
     @Test
     public void testSHA1_192() throws Exception {
-        //testBasic("SHA1", 192);
+        testBasic("SHA1", 192);
     }
 
     @Test
     public void testMD5_192() throws Exception {
-        //testBasic("MD5", 192);
+        testBasic("MD5", 192);
+    }
+    
+    @Test
+    public void testMSHA512_128() throws Exception {
+        testBasic("SHA-512", 128);
     }
 
     @Test(expected = KafkaException.class)
