@@ -47,6 +47,8 @@ In other words: Your original serializer/deserializer will be wrapped with that 
     crypto.rsa.publickey.filepath: <path> #mandatory
     crypto.aes.key_len: 128 #optional
     crypto.hash_method: SHA-256 #optional
+    crypto.new_key_msg_interval: -1 #optional, Generate new AES every n messages (default is -1, that means never generate a new key)
+    
     
 ### Consumer
 

@@ -64,49 +64,73 @@ public class EnDecryptionTest {
 
     @Test
     public void testBasicStandard() throws Exception {
-        testBasic("", 128);
+        testBasic("", 128, -1);
     }
 
     @Test
     public void testAes256() throws Exception {
         Assume.assumeTrue(Cipher.getMaxAllowedKeyLength("AES") >= 256);
-        testBasic("", 256);
+        testBasic("", 256, -1);
     }
 
     @Test
     public void testSHA1() throws Exception {
-        testBasic("SHA1", 128);
+        testBasic("SHA1", 128, -1);
     }
 
     @Test
     public void testSHA1_192() throws Exception {
         Assume.assumeTrue(Cipher.getMaxAllowedKeyLength("AES") >= 192);
-        testBasic("SHA1", 192);
+        testBasic("SHA1", 192, -1);
     }
 
     @Test
     public void testMD5_192() throws Exception {
         Assume.assumeTrue(Cipher.getMaxAllowedKeyLength("AES") >= 192);
-        testBasic("MD5", 192);
+        testBasic("MD5", 192, -1);
     }
     
     @Test
     public void testMSHA512_128() throws Exception {
-        testBasic("SHA-512", 128);
+        testBasic("SHA-512", 128, -1);
     }
 
     @Test(expected = KafkaException.class)
     public void testInvalidKeySize() throws Exception {
-        testBasic("SHA1", 177);
+        testBasic("SHA1", 177, -1);
     }
 
     @Test(expected = KafkaException.class)
     public void testInvalidHashAlgo() throws Exception {
-        testBasic("xxx", 128);
+        testBasic("xxx", 128, -1);
     }
 
     @Test
-    public void testMultithreaded() throws Exception {
+    public void testBasicInterval1() throws Exception {
+        testBasic("", 128, 1);
+    }
+    
+    @Test
+    public void testBasicInterval10() throws Exception {
+        testBasic("", 128, 10);
+    }
+    
+    @Test
+    public void testMultithreadedStandard() throws Exception {
+        testMultithreadedBasic(-1);
+    }
+    
+    @Test
+    public void testMultithreadedInterval1() throws Exception {
+        testMultithreadedBasic(1);
+    }
+    
+    @Test
+    public void testMultithreadedInterval10() throws Exception {
+        testMultithreadedBasic(10);
+    }
+    
+    protected void testMultithreadedBasic(int msgInterval) throws Exception {
         final String str = "The quick brown fox jumps over the lazy dog";
 
         final Map<String, Object> config = new HashMap<String, Object>();
@@ -114,6 +138,7 @@ public class EnDecryptionTest {
         config.put(SerdeCryptoBase.CRYPTO_RSA_PUBLICKEY_FILEPATH, pubKey.getAbsolutePath());
         config.put(EncryptingSerializer.CRYPTO_VALUE_SERIALIZER, StringSerializer.class.getName());
         config.put(DecryptingDeserializer.CRYPTO_VALUE_DESERIALIZER, StringDeserializer.class);
+        config.put(EncryptingSerializer.CRYPTO_NEW_KEY_MSG_INTERVAL, String.valueOf(msgInterval));
 
         final EncryptingSerializer<String> serializer = new EncryptingSerializer<String>();
         serializer.configure(config, false);
@@ -129,10 +154,12 @@ public class EnDecryptionTest {
                 @Override
                 public Exception call() throws Exception {
                     try {
-                        final byte[] enc = serializer.serialize(TOPIC, str);
-                        final Deserializer<String> deserializer = new DecryptingDeserializer<String>();
-                        deserializer.configure(config, false);
-                        assertEquals(str, deserializer.deserialize(TOPIC, enc));
+                        for(int i=0; i<1000; i++) {
+                            final byte[] enc = serializer.serialize(TOPIC, str+i+Thread.currentThread().getName());
+                            final Deserializer<String> deserializer = new DecryptingDeserializer<String>();
+                            deserializer.configure(config, false);
+                            assertEquals(str+i+Thread.currentThread().getName(), deserializer.deserialize(TOPIC, enc));
+                        }
                         return null;
                     } catch (Exception e) {
                         return e;
@@ -157,7 +184,7 @@ public class EnDecryptionTest {
         }
     }
 
-    protected void testBasic(String hashMethod, int keylen) throws Exception {
+    protected void testBasic(String hashMethod, int keylen, int msgInterval) throws Exception {
 
         final Map<String, Object> config = new HashMap<String, Object>();
         config.put(SerdeCryptoBase.CRYPTO_RSA_PRIVATEKEY_FILEPATH, privKey.getAbsolutePath());
@@ -167,6 +194,7 @@ public class EnDecryptionTest {
         config.put(DecryptingDeserializer.CRYPTO_HASH_METHOD, hashMethod);
         config.put(DecryptingDeserializer.CRYPTO_AES_KEY_LEN, String.valueOf(keylen));
         config.put(DecryptingDeserializer.CRYPTO_IGNORE_DECRYPT_FAILURES, "false");
+        config.put(EncryptingSerializer.CRYPTO_NEW_KEY_MSG_INTERVAL, String.valueOf(msgInterval));
 
         final EncryptingSerializer<byte[]> serializer = new EncryptingSerializer<byte[]>();
         serializer.configure(config, false);

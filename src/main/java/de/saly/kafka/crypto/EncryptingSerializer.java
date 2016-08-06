@@ -1,6 +1,7 @@
 package de.saly.kafka.crypto;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.crypto.Cipher;
 
@@ -15,6 +16,7 @@ import org.apache.kafka.common.serialization.Serializer;
  * <li><em>crypto.rsa.publickey.filepath</em> path on the local filesystem which hold the RSA public key (X.509 format) of the consumer
  * <li><em>crypto.wrapped_serializer</em> is the class or full qualified class name or the wrapped serializer
  * <li><em>crypto.hash_method</em> Type of hash generated for the AES key (optional, default is "SHA-256")
+ * <li><em>crypto.new_key_msg_interval</em> Generate new AES every n messages (default is -1, that means never generate a new key)
  * </ul>
  * <p>
  * Each message is encrypted with "AES/CBC/PKCS5Padding" before its sent to Kafka. The AES key as well as the initialization vector are random.
@@ -54,7 +56,10 @@ import org.apache.kafka.common.serialization.Serializer;
 public class EncryptingSerializer<T> extends SerdeCryptoBase implements Serializer<T> {
 
     public static final String CRYPTO_VALUE_SERIALIZER = "crypto.wrapped_serializer";
+    public static final String CRYPTO_NEW_KEY_MSG_INTERVAL = "crypto.new_key_msg_interval";
+    public int msgInterval = -1;
     private Serializer<T> inner;
+    private final AtomicInteger msg = new AtomicInteger();
 
     @SuppressWarnings("unchecked")
     @Override
@@ -62,10 +67,22 @@ public class EncryptingSerializer<T> extends SerdeCryptoBase implements Serializ
         inner = newInstance(configs, CRYPTO_VALUE_SERIALIZER, Serializer.class);
         inner.configure(configs, isKey);
         init(Cipher.ENCRYPT_MODE, configs, isKey);
+        String msgIntervalProperty = (String) configs.get(CRYPTO_NEW_KEY_MSG_INTERVAL);
+        if (msgIntervalProperty != null && msgIntervalProperty.length() > 0) {
+            msgInterval = Integer.parseInt(msgIntervalProperty);
+            if (msgInterval < 1) {
+                msgInterval = -1;
+            }
+        }
     }
 
     @Override
     public byte[] serialize(String topic, T data) {
+        if (msgInterval > 0 && msg.compareAndSet(msgInterval, 0)) {
+            newKey();
+        } else if (msgInterval > 0) {
+            msg.incrementAndGet();
+        }
         return crypt(inner.serialize(topic, data));
     }
 
