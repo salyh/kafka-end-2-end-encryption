@@ -42,6 +42,7 @@ public abstract class SerdeCryptoBase {
     private static final int HEADER_LENGTH = MAGIC_BYTES_LENGTH + 3;
     private static final String AES = "AES";
     private static final String RSA = "RSA";
+    private static final String RSA_TRANFORMATION = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
     private static final int RSA_MULTIPLICATOR = 128;
     private int opMode;
     private String hashMethod = "SHA-256";
@@ -49,16 +50,7 @@ public abstract class SerdeCryptoBase {
     private boolean ignoreDecryptFailures = false;
     private ProducerCryptoBundle producerCryptoBundle = null;
     private ConsumerCryptoBundle consumerCryptoBundle = null;
-    private final static SecureRandom random;
-
-    static {
-        try {
-            random = SecureRandom.getInstanceStrong();
-        } catch (NoSuchAlgorithmException e) {
-            //should not happen
-            throw new KafkaException(e);
-        }
-    }
+    private final static SecureRandom random = new SecureRandom();
 
     protected SerdeCryptoBase() {
 
@@ -71,7 +63,7 @@ public abstract class SerdeCryptoBase {
         final Cipher aesDecrypt = Cipher.getInstance(DEFAULT_TRANSFORMATION);
 
         private ConsumerCryptoBundle(PrivateKey privateKey) throws Exception {
-            rsaDecrypt = Cipher.getInstance(RSA);
+            rsaDecrypt = Cipher.getInstance(RSA_TRANFORMATION);
             rsaDecrypt.init(Cipher.DECRYPT_MODE, privateKey);
         }
 
@@ -125,7 +117,7 @@ public abstract class SerdeCryptoBase {
             aesCipher = Cipher.getInstance(DEFAULT_TRANSFORMATION);
             aesKey = createAESSecretKey(aesKeyBytes);
             aesHash = hash(aesKeyBytes);
-            rsaCipher = Cipher.getInstance(RSA);
+            rsaCipher = Cipher.getInstance(RSA_TRANFORMATION);
             rsaCipher.init(Cipher.ENCRYPT_MODE, publicKey);
             rsaEncyptedAesKey = crypt(rsaCipher, aesKeyBytes);
         }
