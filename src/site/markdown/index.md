@@ -5,7 +5,7 @@ A small library with no external dependencies which provide transparent AES end-
 ## Prerequisites
 
 * Kafka client 0.8.2.0 or higher
-* Java 6 or higher
+* Java 6 or higher (Java 8 **stongly** recommended)
 * For AES 256 en-/decryption you have to install [JCE Unlimited Strength Jurisdiction Policy Files](http://www.oracle.com/technetwork/java/javase/overview/index.html)
 
 ## Features
@@ -20,10 +20,11 @@ A small library with no external dependencies which provide transparent AES end-
 ## Get it
 
 ### via Maven
-
-    <groupId>de.saly</groupId>
-    <artifactId>kafka-end-2-end-encryption</artifactId>
-    <version>1.0.0</version>
+    <dependency>
+      <groupId>de.saly</groupId>
+      <artifactId>kafka-end-2-end-encryption</artifactId>
+      <version>1.0.1</version>
+    <dependency>
     
 ### or download .jar file
 
