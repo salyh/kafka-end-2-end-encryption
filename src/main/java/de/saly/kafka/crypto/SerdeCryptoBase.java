@@ -50,7 +50,6 @@ public abstract class SerdeCryptoBase {
     private boolean ignoreDecryptFailures = false;
     private ProducerCryptoBundle producerCryptoBundle = null;
     private ConsumerCryptoBundle consumerCryptoBundle = null;
-    private final static SecureRandom random = new SecureRandom();
 
     protected SerdeCryptoBase() {
 
@@ -110,6 +109,7 @@ public abstract class SerdeCryptoBase {
         private final byte[] rsaEncyptedAesKey;
         private final Cipher rsaCipher;
         private final Cipher aesCipher;
+        private final SecureRandom random = new SecureRandom();
 
         protected ThreadAwareKeyInfo(PublicKey publicKey) throws Exception {
             byte[] aesKeyBytes = new byte[aesKeyLen/8];
@@ -152,12 +152,11 @@ public abstract class SerdeCryptoBase {
 
             try {
                 final byte[] aesIv = new byte[16];
-                random.nextBytes(aesIv);
+                ki.random.nextBytes(aesIv);
                 ki.aesCipher.init(Cipher.ENCRYPT_MODE, ki.aesKey, new IvParameterSpec(aesIv));
-                final byte[] prolog = concatenate(ki.aesHash, ki.rsaEncyptedAesKey, aesIv);
-                final byte[] header = concatenate(MAGIC_BYTES, new byte[] { (byte) ki.aesHash.length,
-                        (byte) (ki.rsaEncyptedAesKey.length / RSA_MULTIPLICATOR), (byte) aesIv.length });
-                return concatenate(header, prolog, crypt(ki.aesCipher, plain));
+                return concatenate(MAGIC_BYTES, new byte[] { (byte) ki.aesHash.length,
+                        (byte) (ki.rsaEncyptedAesKey.length / RSA_MULTIPLICATOR), (byte) aesIv.length }, ki.aesHash, ki.rsaEncyptedAesKey,
+                        aesIv, crypt(ki.aesCipher, plain));
             } catch (Exception e) {
                 throw new KafkaException(e);
             }
@@ -307,40 +306,16 @@ public abstract class SerdeCryptoBase {
         return c.doFinal(plain, offset, len);
     }
     
-    //
-    
-    public static byte[] concatenate(byte[] a, byte[] b, byte[] c)
-    {
-        if (a != null && b != null && c != null)
-        {
-            byte[] rv = new byte[a.length + b.length + c.length];
-
+    public static byte[] concatenate(byte[] a, byte[] b, byte[] c, byte[] d, byte[] e, byte[] f) {
+        if (a != null && b != null && c != null && d != null && e != null && f != null) {
+            byte[] rv = new byte[a.length + b.length + c.length + d.length + e.length + f.length];
             System.arraycopy(a, 0, rv, 0, a.length);
             System.arraycopy(b, 0, rv, a.length, b.length);
             System.arraycopy(c, 0, rv, a.length + b.length, c.length);
-
+            System.arraycopy(d, 0, rv, a.length + b.length + c.length, d.length);
+            System.arraycopy(e, 0, rv, a.length + b.length + c.length + d.length, e.length);
+            System.arraycopy(f, 0, rv, a.length + b.length + c.length + d.length + e.length, f.length);
             return rv;
-        }
-        else if (a == null)
-        {
-            return concatenate(b, c);
-        }
-        else if (b == null)
-        {
-            return concatenate(a, c);
-        }
-        else
-        {
-            return concatenate(a, b);
-        }
-    }
-
-    private static byte[] concatenate(byte[] a, byte[] b) {
-        if (a != null && b != null) {
-            byte[] concat = new byte[a.length + b.length];
-            System.arraycopy(a, 0, concat, 0, a.length);
-            System.arraycopy(b, 0, concat, a.length, b.length);
-            return concat;
         } else {
             throw new IllegalArgumentException("arrays must not be null");
         }
