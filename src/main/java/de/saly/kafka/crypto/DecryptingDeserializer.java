@@ -16,9 +16,9 @@ import org.apache.kafka.common.serialization.Deserializer;
  * <li><em>crypto.wrapped_deserializer</em> is the class or full qualified class name or the wrapped deserializer
  * <li><em>crypto.ignore_decrypt_failures</em> Skip message decryption on error and just pass the byte[] unencrypted (optional, default is "false"). Possible values are "true" or "false".
  * </ul>
- * 
- * See {@link EncryptingSerializer} on how encryption works
- * 
+ * <p>
+ * See {@link EncryptingSerializer} on how encryption works.
+ * <p>
  * This class will auto detect if an incoming message is encrypted. If not then no decryption attempt is made and message gets handled normally.
  * <p>
  * <b>Note</b>: As Consumers are not multithreading-safe this deserializer is also not thread-safe
