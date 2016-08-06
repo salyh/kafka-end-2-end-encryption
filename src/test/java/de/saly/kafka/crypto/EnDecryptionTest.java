@@ -80,11 +80,13 @@ public class EnDecryptionTest {
 
     @Test
     public void testSHA1_192() throws Exception {
+        Assume.assumeTrue(Cipher.getMaxAllowedKeyLength("AES") >= 192);
         testBasic("SHA1", 192);
     }
 
     @Test
     public void testMD5_192() throws Exception {
+        Assume.assumeTrue(Cipher.getMaxAllowedKeyLength("AES") >= 192);
         testBasic("MD5", 192);
     }
     
