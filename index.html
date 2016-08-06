@@ -133,7 +133,7 @@
                   <li id="publishDate">Last Published: 2016-08-06
                       <span class="divider">|</span>
                    </li>
-                  <li id="projectVersion">Version: 1.0.1-SNAPSHOT
+                  <li id="projectVersion">Version: 1.0.1
                       </li>
                       
               
@@ -328,6 +328,7 @@
 crypto.rsa.publickey.filepath: &lt;path&gt; #mandatory
 crypto.aes.key_len: 128 #optional
 crypto.hash_method: SHA-256 #optional
+crypto.new_key_msg_interval: -1 #optional, Generate new AES every n messages (default is -1, that means never generate a new key)
 </pre></div></div></div>
 <div class="section">
 <h3><a name="Consumer"></a>Consumer</h3>
