@@ -7,6 +7,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.SecureRandom;
+import java.security.Security;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -26,6 +28,10 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.bouncycastle.asn1.x9.X9ECParameters;
+import org.bouncycastle.crypto.ec.CustomNamedCurves;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
@@ -43,15 +49,16 @@ public class EnDecryptionTest {
         pubKey.deleteOnExit();
         privKey = File.createTempFile("kafka", "crypto");
         privKey.deleteOnExit();
-
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-        keyGen.initialize(2048);
+        
+        X9ECParameters ecP = CustomNamedCurves.getByName("curve25519");
+        ECParameterSpec ecSpec=new ECParameterSpec(ecP.getCurve(), ecP.getG(),
+                ecP.getN(), ecP.getH(), ecP.getSeed());
+        
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("ECDH", new BouncyCastleProvider());
+        keyGen.initialize(ecSpec, new SecureRandom());
         KeyPair pair = keyGen.genKeyPair();
         publicKey = pair.getPublic().getEncoded();
         privateKey = pair.getPrivate().getEncoded();
-
-        //System.out.println("private key format: "+pair.getPrivate().getFormat()); // PKCS#8
-        //System.out.println("public key format: "+pair.getPublic().getFormat()); // X.509
 
         FileOutputStream fout = new FileOutputStream(pubKey);
         fout.write(publicKey);

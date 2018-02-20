@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -27,6 +28,11 @@ import javax.xml.bind.DatatypeConverter;
 
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.utils.Utils;
+import org.bouncycastle.jcajce.provider.asymmetric.EC;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.IESCipher;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.jce.spec.IEKeySpec;
+import org.bouncycastle.jce.spec.IESParameterSpec;
 
 public abstract class SerdeCryptoBase {
 
@@ -41,9 +47,9 @@ public abstract class SerdeCryptoBase {
     private static final int MAGIC_BYTES_LENGTH = MAGIC_BYTES.length;
     private static final int HEADER_LENGTH = MAGIC_BYTES_LENGTH + 3;
     private static final String AES = "AES";
-    private static final String RSA = "RSA";
-    private static final String RSA_TRANFORMATION = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
-    private static final int RSA_MULTIPLICATOR = 128;
+    private static final String KEY_FACTORY = "EC";
+    private static final String ASYMMETRIC_TRANFORMATION = "ECIESWITHAES-CBC";///OAEPWithSHA-256AndMGF1Padding";
+    private static final int RSA_MULTIPLICATOR = 2;
     private int opMode;
     private String hashMethod = "SHA-256";
     private int aesKeyLen = 128;
@@ -53,10 +59,12 @@ public abstract class SerdeCryptoBase {
     private static final int IV_SIZE = 16;
     private static final int GCM_TAG_BIT_LENGTH = 128 ;
     private static final byte[] AAD_BYTES = "random".getBytes();
-
-    protected SerdeCryptoBase() {
-
-    }
+    
+    byte[]  d = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8,1, 2, 3, 4, 5, 6, 7, 8 };
+    byte[]  e = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1,1, 2, 3, 4, 5, 6, 7, 8 };
+    IESParameterSpec param = new IESParameterSpec(d, e, 128, 128, d);
+    
+    private static final BouncyCastleProvider BC = new BouncyCastleProvider();
 
     //not thread safe
     private class ConsumerCryptoBundle {
@@ -64,9 +72,10 @@ public abstract class SerdeCryptoBase {
         private Cipher rsaDecrypt;
         final Cipher aesDecrypt = Cipher.getInstance(DEFAULT_TRANSFORMATION);
 
-        private ConsumerCryptoBundle(PrivateKey privateKey) throws Exception {
-            rsaDecrypt = Cipher.getInstance(RSA_TRANFORMATION);
-            rsaDecrypt.init(Cipher.DECRYPT_MODE, privateKey);
+        private ConsumerCryptoBundle(PrivateKey privateKey, PublicKey publicKey) throws Exception {
+        	System.out.println(privateKey.getClass());
+            rsaDecrypt = Cipher.getInstance(ASYMMETRIC_TRANFORMATION, BC);
+            rsaDecrypt.init(Cipher.DECRYPT_MODE, new IEKeySpec(privateKey, publicKey), param);
         }
 
         private byte[] aesDecrypt(byte[] encrypted) throws KafkaException {
@@ -116,15 +125,16 @@ public abstract class SerdeCryptoBase {
         private final Cipher aesCipher;
         private final SecureRandom random = new SecureRandom();
 
-        protected ThreadAwareKeyInfo(PublicKey publicKey) throws Exception {
+        protected ThreadAwareKeyInfo(PublicKey publicKey, PrivateKey privateKey) throws Exception {
             byte[] aesKeyBytes = new byte[aesKeyLen/8];
             random.nextBytes(aesKeyBytes);
             aesCipher = Cipher.getInstance(DEFAULT_TRANSFORMATION);
             aesKey = createAESSecretKey(aesKeyBytes);
             aesHash = hash(aesKeyBytes);
-            rsaCipher = Cipher.getInstance(RSA_TRANFORMATION);
-            rsaCipher.init(Cipher.ENCRYPT_MODE, publicKey);
+            rsaCipher = Cipher.getInstance(ASYMMETRIC_TRANFORMATION, BC);
+            rsaCipher.init(Cipher.ENCRYPT_MODE, new IEKeySpec(privateKey, publicKey), param);
             rsaEncyptedAesKey = crypt(rsaCipher, aesKeyBytes);
+            System.out.println("new key generated");
         }
     }
 
@@ -135,16 +145,18 @@ public abstract class SerdeCryptoBase {
             @Override
             protected ThreadAwareKeyInfo initialValue() {
                 try {
-                    return new ThreadAwareKeyInfo(publicKey);
+                    return new ThreadAwareKeyInfo(publicKey, privateKey);
                 } catch (Exception e) {
                     throw new KafkaException(e);
                 }
             }
         };
         private final PublicKey publicKey;
+        private final PrivateKey privateKey;
 
-        private ProducerCryptoBundle(PublicKey publicKey) throws Exception {
+        private ProducerCryptoBundle(PublicKey publicKey, PrivateKey privateKey) throws Exception {
             this.publicKey = publicKey;
+            this.privateKey = privateKey;
         }
 
         private void newKey() throws Exception {
@@ -159,6 +171,7 @@ public abstract class SerdeCryptoBase {
                 ki.random.nextBytes(aesIv);
                 ki.aesCipher.init(Cipher.ENCRYPT_MODE, ki.aesKey, new GCMParameterSpec(GCM_TAG_BIT_LENGTH, aesIv), new SecureRandom());
                 ki.aesCipher.updateAAD(AAD_BYTES);
+                System.out.println("ki.rsaEncyptedAesKey.length "+ki.rsaEncyptedAesKey.length);
                 return concatenate(MAGIC_BYTES, new byte[] { (byte) ki.aesHash.length,
                         (byte) (ki.rsaEncyptedAesKey.length / RSA_MULTIPLICATOR), (byte) aesIv.length }, ki.aesHash, ki.rsaEncyptedAesKey,
                         aesIv, crypt(ki.aesCipher, plain));
@@ -193,14 +206,15 @@ public abstract class SerdeCryptoBase {
         }
         
         try {
+        	String rsaPrivateKeyFile = (String) configs.get(CRYPTO_RSA_PRIVATEKEY_FILEPATH);
+        	String rsaPublicKeyFile = (String) configs.get(CRYPTO_RSA_PUBLICKEY_FILEPATH);
+        	
             if (opMode == Cipher.DECRYPT_MODE) {
                 //Consumer
-                String rsaPrivateKeyFile = (String) configs.get(CRYPTO_RSA_PRIVATEKEY_FILEPATH);
-                consumerCryptoBundle = new ConsumerCryptoBundle(createRSAPrivateKey(readBytesFromFile(rsaPrivateKeyFile)));
+                consumerCryptoBundle = new ConsumerCryptoBundle(createRSAPrivateKey(readBytesFromFile(rsaPrivateKeyFile)),createRSAPublicKey(readBytesFromFile(rsaPublicKeyFile)));
             } else {
                 //Producer
-                String rsaPublicKeyFile = (String) configs.get(CRYPTO_RSA_PUBLICKEY_FILEPATH);
-                producerCryptoBundle = new ProducerCryptoBundle(createRSAPublicKey(readBytesFromFile(rsaPublicKeyFile)));
+                producerCryptoBundle = new ProducerCryptoBundle(createRSAPublicKey(readBytesFromFile(rsaPublicKeyFile)),createRSAPrivateKey(readBytesFromFile(rsaPrivateKeyFile)));
             }
         } catch (Exception e) {
             throw new KafkaException(e);
@@ -217,7 +231,9 @@ public abstract class SerdeCryptoBase {
             return consumerCryptoBundle.aesDecrypt(array);
         } else {
             //Producer
-            return producerCryptoBundle.aesEncrypt(array);
+            byte[] e = producerCryptoBundle.aesEncrypt(array);
+            System.out.println("aes encrypt ok");
+            return e;
         }
     }
 
@@ -258,7 +274,7 @@ public abstract class SerdeCryptoBase {
         }
 
         PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(encodedKey);
-        KeyFactory kf = KeyFactory.getInstance(RSA);
+        KeyFactory kf = KeyFactory.getInstance(KEY_FACTORY, BC);
         return kf.generatePrivate(spec);
     }
 
@@ -270,13 +286,13 @@ public abstract class SerdeCryptoBase {
         return new SecretKeySpec(encodedKey, AES);
     }
 
-    private static PublicKey createRSAPublicKey(byte[] encodedKey) throws NoSuchAlgorithmException, InvalidKeySpecException {
+    private static PublicKey createRSAPublicKey(byte[] encodedKey) throws NoSuchAlgorithmException, InvalidKeySpecException, NoSuchProviderException {
         if (encodedKey == null || encodedKey.length == 0) {
             throw new IllegalArgumentException("Key bytes must not be null or empty");
         }
 
         X509EncodedKeySpec spec = new X509EncodedKeySpec(encodedKey);
-        KeyFactory kf = KeyFactory.getInstance(RSA);
+        KeyFactory kf = KeyFactory.getInstance(KEY_FACTORY, BC);
         return kf.generatePublic(spec);
     }
 
