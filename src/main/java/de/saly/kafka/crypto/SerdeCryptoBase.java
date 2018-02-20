@@ -21,7 +21,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.bind.DatatypeConverter;
 
@@ -36,7 +36,7 @@ public abstract class SerdeCryptoBase {
     public static final String CRYPTO_IGNORE_DECRYPT_FAILURES = "crypto.ignore_decrypt_failures";
     public static final String CRYPTO_AES_KEY_LEN = "crypto.aes.key_len";
     static final byte[] MAGIC_BYTES = new byte[] { (byte) 0xDF, (byte) 0xBB };
-    protected static final String DEFAULT_TRANSFORMATION = "AES/CBC/PKCS5Padding"; //TODO allow other like GCM
+    protected static final String DEFAULT_TRANSFORMATION = "AES/GCM/PKCS5Padding";
     private static final Map<String, byte[]> aesKeyCache = new HashMap<String, byte[]>();
     private static final int MAGIC_BYTES_LENGTH = MAGIC_BYTES.length;
     private static final int HEADER_LENGTH = MAGIC_BYTES_LENGTH + 3;
@@ -50,6 +50,9 @@ public abstract class SerdeCryptoBase {
     private boolean ignoreDecryptFailures = false;
     private ProducerCryptoBundle producerCryptoBundle = null;
     private ConsumerCryptoBundle consumerCryptoBundle = null;
+    private static final int IV_SIZE = 16;
+    private static final int GCM_TAG_BIT_LENGTH = 128 ;
+    private static final byte[] AAD_BYTES = "random".getBytes();
 
     protected SerdeCryptoBase() {
 
@@ -80,13 +83,15 @@ public abstract class SerdeCryptoBase {
                     byte[] aesKey;
 
                     if ((aesKey = aesKeyCache.get(aesHash)) != null) {
-                        aesDecrypt.init(Cipher.DECRYPT_MODE, createAESSecretKey(aesKey), new IvParameterSpec(iv));
+                        aesDecrypt.init(Cipher.DECRYPT_MODE, createAESSecretKey(aesKey), new GCMParameterSpec(GCM_TAG_BIT_LENGTH, iv), new SecureRandom());
+                        aesDecrypt.updateAAD(AAD_BYTES);
                         return crypt(aesDecrypt, encrypted, offset, encrypted.length - offset);
                     } else {
                         byte[] rsaEncryptedAesKey = Arrays.copyOfRange(encrypted, HEADER_LENGTH + hashLen,
                                 HEADER_LENGTH + hashLen + (rsaFactor * RSA_MULTIPLICATOR));
                         aesKey = crypt(rsaDecrypt, rsaEncryptedAesKey);
-                        aesDecrypt.init(Cipher.DECRYPT_MODE, createAESSecretKey(aesKey), new IvParameterSpec(iv));
+                        aesDecrypt.init(Cipher.DECRYPT_MODE, createAESSecretKey(aesKey), new GCMParameterSpec(GCM_TAG_BIT_LENGTH, iv), new SecureRandom());
+                        aesDecrypt.updateAAD(AAD_BYTES);
                         aesKeyCache.put(aesHash, aesKey);
                         return crypt(aesDecrypt, encrypted, offset, encrypted.length - offset);
                     }
@@ -150,9 +155,10 @@ public abstract class SerdeCryptoBase {
             final ThreadAwareKeyInfo ki = keyInfo.get();
 
             try {
-                final byte[] aesIv = new byte[16];
+                final byte[] aesIv = new byte[IV_SIZE];
                 ki.random.nextBytes(aesIv);
-                ki.aesCipher.init(Cipher.ENCRYPT_MODE, ki.aesKey, new IvParameterSpec(aesIv));
+                ki.aesCipher.init(Cipher.ENCRYPT_MODE, ki.aesKey, new GCMParameterSpec(GCM_TAG_BIT_LENGTH, aesIv), new SecureRandom());
+                ki.aesCipher.updateAAD(AAD_BYTES);
                 return concatenate(MAGIC_BYTES, new byte[] { (byte) ki.aesHash.length,
                         (byte) (ki.rsaEncyptedAesKey.length / RSA_MULTIPLICATOR), (byte) aesIv.length }, ki.aesHash, ki.rsaEncyptedAesKey,
                         aesIv, crypt(ki.aesCipher, plain));
