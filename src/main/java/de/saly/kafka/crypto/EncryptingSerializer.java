@@ -83,6 +83,7 @@ public class EncryptingSerializer<T> extends SerdeCryptoBase implements Serializ
         } else if (msgInterval > 0) {
             msg.incrementAndGet();
         }
+
         return crypt(inner.serialize(topic, data));
     }
 

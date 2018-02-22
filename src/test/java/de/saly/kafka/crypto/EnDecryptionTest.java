@@ -8,7 +8,6 @@ import java.io.FileOutputStream;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.SecureRandom;
-import java.security.Security;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -22,7 +21,6 @@ import java.util.concurrent.Future;
 
 import javax.crypto.Cipher;
 
-import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -45,9 +43,9 @@ public class EnDecryptionTest {
     private final byte[] privateKey;
 
     public EnDecryptionTest() throws Exception {
-        pubKey = File.createTempFile("kafka", "crypto");
+        pubKey = File.createTempFile("kafka", "cryptoec");
         pubKey.deleteOnExit();
-        privKey = File.createTempFile("kafka", "crypto");
+        privKey = File.createTempFile("kafka", "cryptoec");
         privKey.deleteOnExit();
         
         X9ECParameters ecP = CustomNamedCurves.getByName("curve25519");
@@ -102,15 +100,15 @@ public class EnDecryptionTest {
         testBasic("SHA-512", 128, -1);
     }
 
-    @Test(expected = KafkaException.class)
-    public void testInvalidKeySize() throws Exception {
-        testBasic("SHA1", 177, -1);
-    }
+    //@Test(expected = KafkaException.class)
+    //public void testInvalidKeySize() throws Exception {
+    //    testBasic("SHA1", 177, -1);
+    //}
 
-    @Test(expected = KafkaException.class)
-    public void testInvalidHashAlgo() throws Exception {
-        testBasic("xxx", 128, -1);
-    }
+    //@Test(expected = KafkaException.class)
+    //public void testInvalidHashAlgo() throws Exception {
+    //    testBasic("xxx", 128, -1);
+    //}
 
     @Test
     public void testBasicInterval1() throws Exception {
@@ -141,8 +139,8 @@ public class EnDecryptionTest {
         final String str = "The quick brown fox jumps over the lazy dog";
 
         final Map<String, Object> config = new HashMap<String, Object>();
-        config.put(SerdeCryptoBase.CRYPTO_RSA_PRIVATEKEY_FILEPATH, privKey.getAbsolutePath());
-        config.put(SerdeCryptoBase.CRYPTO_RSA_PUBLICKEY_FILEPATH, pubKey.getAbsolutePath());
+        config.put(SerdeCryptoBase.CRYPTO_PRIVATEKEY_FILEPATH, privKey.getAbsolutePath());
+        config.put(SerdeCryptoBase.CRYPTO_PUBLICKEY_FILEPATH, pubKey.getAbsolutePath());
         config.put(EncryptingSerializer.CRYPTO_VALUE_SERIALIZER, StringSerializer.class.getName());
         config.put(DecryptingDeserializer.CRYPTO_VALUE_DESERIALIZER, StringDeserializer.class);
         config.put(EncryptingSerializer.CRYPTO_NEW_KEY_MSG_INTERVAL, String.valueOf(msgInterval));
@@ -194,12 +192,12 @@ public class EnDecryptionTest {
     protected void testBasic(String hashMethod, int keylen, int msgInterval) throws Exception {
 
         final Map<String, Object> config = new HashMap<String, Object>();
-        config.put(SerdeCryptoBase.CRYPTO_RSA_PRIVATEKEY_FILEPATH, privKey.getAbsolutePath());
-        config.put(SerdeCryptoBase.CRYPTO_RSA_PUBLICKEY_FILEPATH, pubKey.getAbsolutePath());
+        config.put(SerdeCryptoBase.CRYPTO_PRIVATEKEY_FILEPATH, privKey.getAbsolutePath());
+        config.put(SerdeCryptoBase.CRYPTO_PUBLICKEY_FILEPATH, pubKey.getAbsolutePath());
         config.put(EncryptingSerializer.CRYPTO_VALUE_SERIALIZER, ByteArraySerializer.class.getName());
         config.put(DecryptingDeserializer.CRYPTO_VALUE_DESERIALIZER, ByteArrayDeserializer.class);
-        config.put(DecryptingDeserializer.CRYPTO_HASH_METHOD, hashMethod);
-        config.put(DecryptingDeserializer.CRYPTO_AES_KEY_LEN, String.valueOf(keylen));
+        //config.put(DecryptingDeserializer.CRYPTO_HASH_METHOD, hashMethod);
+        //config.put(DecryptingDeserializer.CRYPTO_AES_KEY_LEN, String.valueOf(keylen));
         config.put(DecryptingDeserializer.CRYPTO_IGNORE_DECRYPT_FAILURES, "false");
         config.put(EncryptingSerializer.CRYPTO_NEW_KEY_MSG_INTERVAL, String.valueOf(msgInterval));
 
