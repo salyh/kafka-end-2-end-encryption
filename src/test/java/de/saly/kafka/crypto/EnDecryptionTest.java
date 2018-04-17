@@ -2,6 +2,7 @@ package de.saly.kafka.crypto;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -21,6 +22,7 @@ import java.util.concurrent.Future;
 
 import javax.crypto.Cipher;
 
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -69,55 +71,35 @@ public class EnDecryptionTest {
 
     @Test
     public void testBasicStandard() throws Exception {
-        testBasic("", 128, -1);
+        testBasic(128, -1);
     }
 
     @Test
     public void testAes256() throws Exception {
         Assume.assumeTrue(Cipher.getMaxAllowedKeyLength("AES") >= 256);
-        testBasic("", 256, -1);
-    }
-
-    @Test
-    public void testSHA1() throws Exception {
-        testBasic("SHA1", 128, -1);
-    }
-
-    @Test
-    public void testSHA1_192() throws Exception {
-        Assume.assumeTrue(Cipher.getMaxAllowedKeyLength("AES") >= 192);
-        testBasic("SHA1", 192, -1);
-    }
-
-    @Test
-    public void testMD5_192() throws Exception {
-        Assume.assumeTrue(Cipher.getMaxAllowedKeyLength("AES") >= 192);
-        testBasic("MD5", 192, -1);
+        testBasic(256, -1);
     }
     
-    @Test
-    public void testMSHA512_128() throws Exception {
-        testBasic("SHA-512", 128, -1);
+    @Test(expected = KafkaException.class)
+    public void testAesInvalidKeySize() throws Exception {
+        Assume.assumeTrue(Cipher.getMaxAllowedKeyLength("AES") >= 256);
+        testBasic(111, -1);
     }
 
-    //@Test(expected = KafkaException.class)
-    //public void testInvalidKeySize() throws Exception {
-    //    testBasic("SHA1", 177, -1);
-    //}
-
-    //@Test(expected = KafkaException.class)
-    //public void testInvalidHashAlgo() throws Exception {
-    //    testBasic("xxx", 128, -1);
-    //}
+    @Test
+    public void testAes192() throws Exception {
+        Assume.assumeTrue(Cipher.getMaxAllowedKeyLength("AES") >= 192);
+        testBasic(192, -1);
+    }
 
     @Test
     public void testBasicInterval1() throws Exception {
-        testBasic("", 128, 1);
+        testBasic(128, 1);
     }
     
     @Test
     public void testBasicInterval10() throws Exception {
-        testBasic("", 128, 10);
+        testBasic(128, 10);
     }
     
     @Test
@@ -189,23 +171,27 @@ public class EnDecryptionTest {
         }
     }
 
-    protected void testBasic(String hashMethod, int keylen, int msgInterval) throws Exception {
+    protected void testBasic(int keylen, int msgInterval) throws Exception {
 
-        final Map<String, Object> config = new HashMap<String, Object>();
-        config.put(SerdeCryptoBase.CRYPTO_PRIVATEKEY_FILEPATH, privKey.getAbsolutePath());
-        config.put(SerdeCryptoBase.CRYPTO_PUBLICKEY_FILEPATH, pubKey.getAbsolutePath());
-        config.put(EncryptingSerializer.CRYPTO_VALUE_SERIALIZER, ByteArraySerializer.class.getName());
-        config.put(DecryptingDeserializer.CRYPTO_VALUE_DESERIALIZER, ByteArrayDeserializer.class);
-        //config.put(DecryptingDeserializer.CRYPTO_HASH_METHOD, hashMethod);
-        //config.put(DecryptingDeserializer.CRYPTO_AES_KEY_LEN, String.valueOf(keylen));
-        config.put(DecryptingDeserializer.CRYPTO_IGNORE_DECRYPT_FAILURES, "false");
-        config.put(EncryptingSerializer.CRYPTO_NEW_KEY_MSG_INTERVAL, String.valueOf(msgInterval));
+        final Map<String, Object> serializerConfig = new HashMap<String, Object>();
+        serializerConfig.put(SerdeCryptoBase.CRYPTO_PRIVATEKEY_FILEPATH, privKey.getAbsolutePath());
+        serializerConfig.put(SerdeCryptoBase.CRYPTO_PUBLICKEY_FILEPATH, pubKey.getAbsolutePath());
+        serializerConfig.put(SerdeCryptoBase.CRYPTO_AES_KEY_LEN, String.valueOf(keylen));
+        serializerConfig.put(EncryptingSerializer.CRYPTO_VALUE_SERIALIZER, ByteArraySerializer.class.getName());
+        serializerConfig.put(EncryptingSerializer.CRYPTO_NEW_KEY_MSG_INTERVAL, String.valueOf(msgInterval));
 
         final EncryptingSerializer<byte[]> serializer = new EncryptingSerializer<byte[]>();
-        serializer.configure(config, false);
+        serializer.configure(serializerConfig, false);
 
+        final Map<String, Object> deserializerConfig = new HashMap<String, Object>();
+        deserializerConfig.put(SerdeCryptoBase.CRYPTO_PRIVATEKEY_FILEPATH, privKey.getAbsolutePath());
+        deserializerConfig.put(SerdeCryptoBase.CRYPTO_PUBLICKEY_FILEPATH, pubKey.getAbsolutePath());
+        deserializerConfig.put(SerdeCryptoBase.CRYPTO_AES_KEY_LEN, String.valueOf(keylen));
+        deserializerConfig.put(DecryptingDeserializer.CRYPTO_VALUE_DESERIALIZER, ByteArrayDeserializer.class);
+        deserializerConfig.put(DecryptingDeserializer.CRYPTO_IGNORE_DECRYPT_FAILURES, "false");
+        
         final Deserializer<byte[]> deserializer = new DecryptingDeserializer<byte[]>();
-        deserializer.configure(config, false);
+        deserializer.configure(deserializerConfig, false);
 
         final Random rand = new Random(System.currentTimeMillis());
         for (int i = 0; i < 1000; i++) {
@@ -230,7 +216,7 @@ public class EnDecryptionTest {
         byte[] plainText = "The quick brown fox jumps over the lazy dog".getBytes("UTF-8");
         byte[] encryptedText = serializer.serialize(TOPIC, plainText);
         assertArrayEquals(SerdeCryptoBase.MAGIC_BYTES, Arrays.copyOfRange(encryptedText, 0, 2));
-
+        
         assertArrayEquals(plainText, deserializer.deserialize(TOPIC, plainText));
 
         try {
@@ -240,8 +226,8 @@ public class EnDecryptionTest {
             //expected
         }
 
-        config.put(DecryptingDeserializer.CRYPTO_IGNORE_DECRYPT_FAILURES, "true");
-        deserializer.configure(config, false);
+        deserializerConfig.put(DecryptingDeserializer.CRYPTO_IGNORE_DECRYPT_FAILURES, "true");
+        deserializer.configure(deserializerConfig, false);
 
         try {
             assertArrayEquals(SerdeCryptoBase.MAGIC_BYTES, deserializer.deserialize(TOPIC, SerdeCryptoBase.MAGIC_BYTES));

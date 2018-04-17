@@ -4,6 +4,9 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -15,50 +18,58 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Properties;
 
-import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyAgreement;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
+import org.apache.commons.crypto.cipher.CryptoCipher;
+import org.apache.commons.crypto.cipher.CryptoCipherFactory;
+import org.apache.commons.crypto.cipher.CryptoCipherFactory.CipherProvider;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.utils.Utils;
+import org.bouncycastle.crypto.digests.SHA256Digest;
+import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
+import org.bouncycastle.crypto.params.HKDFParameters;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.jce.spec.IEKeySpec;
-import org.bouncycastle.jce.spec.IESParameterSpec;
 
 public abstract class SerdeCryptoBase {
 
-    public static final String CRYPTO_PRIVATEKEY_FILEPATH = "crypto.privatekey.filepath";
+	public static final String CRYPTO_PRIVATEKEY_FILEPATH = "crypto.privatekey.filepath";
     public static final String CRYPTO_PUBLICKEY_FILEPATH = "crypto.publickey.filepath";
     public static final String CRYPTO_IGNORE_DECRYPT_FAILURES = "crypto.ignore_decrypt_failures";
-    static final byte[] MAGIC_BYTES = new byte[] { (byte) 0xAF, (byte) 0xCB };
+    public static final String CRYPTO_AES_KEY_LEN = "crypto.aes.key_len";
+    
+    private static final String ECDH = "ECDH"; //Elliptic-curve Diffie–Hellman
+    static final byte[] MAGIC_BYTES = new byte[] { (byte) 0xBD, (byte) 0xDD };
     private static final int MAGIC_BYTES_LENGTH = MAGIC_BYTES.length;
     private static final int HEADER_LENGTH = MAGIC_BYTES_LENGTH + 1;
-    private static final String KEY_FACTORY = "EC";
-    private static final String ASYMMETRIC_TRANFORMATION = "ECIESWITHAES-CBC";
+    private static final int IV_SIZE = 12; //12 bytes initialization vector
+    private static final int GCM_TAG_BIT_LENGTH = 128 ;
+    private static final byte[] INFO_BYTES = "KafkaE2ES".getBytes(StandardCharsets.US_ASCII);
+    private static final String AES_GCM_TRANSFORMATION = "AES/GCM/NoPadding"; //padding is part of gcm itself
+
+    private static final BouncyCastleProvider BC = new BouncyCastleProvider();
     private int opMode;
+    private int aesKeyLen = 128;
     private boolean ignoreDecryptFailures = false;
     private ProducerCryptoBundle producerCryptoBundle = null;
     private ConsumerCryptoBundle consumerCryptoBundle = null;
-    private static final int IV_SIZE = 16;
     
-    private static final byte[]  d = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8 };
-    private static final byte[]  e = new byte[] { 8, 7, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7, 8 };
+    private Properties cryptoProps;
     
-    private static final BouncyCastleProvider BC = new BouncyCastleProvider();
-
     //not thread safe
     private class ConsumerCryptoBundle {
 
-        private final Cipher decryptingCipher;
-        private final PrivateKey privateKey;
-        private final PublicKey publicKey;
-
+        private final Key key;
+        private final CryptoCipher decryptingCipher;
+        
         private ConsumerCryptoBundle(PrivateKey privateKey, PublicKey publicKey) throws Exception {     
-        	this.privateKey = privateKey;
-        	this.publicKey = publicKey;
-            decryptingCipher = Cipher.getInstance(ASYMMETRIC_TRANFORMATION, BC);
+        	final byte[] aesKey = deriveAESSecretKey(publicKey, privateKey);
+            decryptingCipher = org.apache.commons.crypto.utils.Utils.getCipherInstance(AES_GCM_TRANSFORMATION, cryptoProps);
+            key = new SecretKeySpec(aesKey, "AES");
         }
 
         private byte[] decrypt(byte[] encrypted) throws KafkaException {
@@ -67,9 +78,12 @@ public abstract class SerdeCryptoBase {
                     final byte ivLen = encrypted[2];
                     final int offset = HEADER_LENGTH + ivLen;
                     final byte[] iv = Arrays.copyOfRange(encrypted, HEADER_LENGTH, HEADER_LENGTH + ivLen);
-                    final IESParameterSpec param = new IESParameterSpec(d, e, 128, 128, iv);
-                    decryptingCipher.init(Cipher.DECRYPT_MODE, new IEKeySpec(privateKey, publicKey), param);
-                    return crypt(decryptingCipher, encrypted, offset, encrypted.length - offset);
+                    final byte[] ciphertext = Arrays.copyOfRange(encrypted, offset, encrypted.length);
+                    final byte[] plainOutput = new byte[ciphertext.length - (GCM_TAG_BIT_LENGTH >> 3)];
+                    final GCMParameterSpec ivSpec = new GCMParameterSpec(GCM_TAG_BIT_LENGTH, iv);
+                    decryptingCipher.init(Cipher.DECRYPT_MODE, key, ivSpec);
+                    final int len = decryptingCipher.doFinal(ciphertext, 0, ciphertext.length, plainOutput, 0);
+                    return plainOutput.length!=len?Arrays.copyOf(plainOutput, len):plainOutput;
                 } else {
                     return encrypted; //not encrypted, just bypass decryption
                 }
@@ -84,17 +98,23 @@ public abstract class SerdeCryptoBase {
     }
 
     private class ThreadAwareKeyInfo {
-        private final Cipher encrypingCipher;
         private final SecureRandom random = new SecureRandom();
+        private final Key key;
+        private final CryptoCipher encryptingCipher;
 
         protected ThreadAwareKeyInfo(PublicKey publicKey, PrivateKey privateKey) throws Exception {
-            encrypingCipher = Cipher.getInstance(ASYMMETRIC_TRANFORMATION, BC);
+            final byte[] aesKey = deriveAESSecretKey(publicKey, privateKey);
+            encryptingCipher = org.apache.commons.crypto.utils.Utils.getCipherInstance(AES_GCM_TRANSFORMATION, cryptoProps);
+            key = new SecretKeySpec(aesKey, "AES");
         }
     }
 
-    //threads safe
+    //thread safe
     private class ProducerCryptoBundle {
 
+        private final PublicKey publicKey;
+        private final PrivateKey privateKey;
+    	
         private ThreadLocal<ThreadAwareKeyInfo> keyInfo = new ThreadLocal<ThreadAwareKeyInfo>() {
             @Override
             protected ThreadAwareKeyInfo initialValue() {
@@ -105,18 +125,10 @@ public abstract class SerdeCryptoBase {
                 }
             }
         };
-        private final PublicKey publicKey;
-        private final PrivateKey privateKey;
 
         private ProducerCryptoBundle(PublicKey publicKey, PrivateKey privateKey) throws Exception {
             this.publicKey = publicKey;
             this.privateKey = privateKey;
-            KeyAgreement ka = KeyAgreement.getInstance("ECDH", BC);
-            ka.init(privateKey);
-            ka.doPhase(publicKey, true);
-
-            // Read shared secret
-            byte[] sharedSecret = ka.generateSecret();
         }
 
         private void newKey() throws Exception {
@@ -127,14 +139,17 @@ public abstract class SerdeCryptoBase {
             final ThreadAwareKeyInfo ki = keyInfo.get();
 
             try {
+            	final byte[] encOutput = new byte[plain.length + (GCM_TAG_BIT_LENGTH >> 3)];
                 final byte[] aesIv = new byte[IV_SIZE];
                 ki.random.nextBytes(aesIv);
-                final IESParameterSpec param = new IESParameterSpec(d, e, 128, 128, aesIv);
-                ki.encrypingCipher.init(Cipher.ENCRYPT_MODE, new IEKeySpec(privateKey, publicKey), param);
+                final GCMParameterSpec ivSpec = new GCMParameterSpec(GCM_TAG_BIT_LENGTH, aesIv);
+                ki.encryptingCipher.init(Cipher.ENCRYPT_MODE, ki.key, ivSpec);
+                int len = ki.encryptingCipher.doFinal(plain, 0, plain.length, encOutput, 0);
                 return concatenate(MAGIC_BYTES, 
-                		new byte[] { (byte) aesIv.length },
+                		new byte[] { (byte) aesIv.length},
                         aesIv, 
-                        crypt(ki.encrypingCipher, plain));
+                        encOutput.length!=len?Arrays.copyOf(encOutput, len):encOutput);
+                
             } catch (Exception e) {
                 throw new KafkaException(e);
             }
@@ -144,10 +159,27 @@ public abstract class SerdeCryptoBase {
     protected void init(int opMode, Map<String, ?> configs, boolean isKey) throws KafkaException {
         this.opMode = opMode;
         
+        //String cipherClass = CipherProvider.JCE.getClassName();
+        String cipherClass = CipherProvider.OPENSSL.getClassName();
+
+    	cryptoProps = new Properties();
+        cryptoProps.setProperty(CryptoCipherFactory.CLASSES_KEY,
+                cipherClass);
+        
+        
         final String ignoreDecryptFailuresProperty = (String) configs.get(CRYPTO_IGNORE_DECRYPT_FAILURES);
         
         if(ignoreDecryptFailuresProperty != null && ignoreDecryptFailuresProperty.length() != 0) {
             ignoreDecryptFailures = Boolean.parseBoolean(ignoreDecryptFailuresProperty);
+        }
+        
+        final String aesKeyLenProperty = (String) configs.get(CRYPTO_AES_KEY_LEN);
+        
+        if(aesKeyLenProperty != null && aesKeyLenProperty.length() != 0) {
+            aesKeyLen = Integer.parseInt(aesKeyLenProperty);
+            if(aesKeyLen != 128 && aesKeyLen != 192 && aesKeyLen != 256) {
+                throw new KafkaException("Invalid aes key size, should be 128, 192 or 256");
+            }
         }
         
         try {
@@ -176,8 +208,7 @@ public abstract class SerdeCryptoBase {
             return consumerCryptoBundle.decrypt(array);
         } else {
             //Producer
-            byte[] e = producerCryptoBundle.encrypt(array);
-            return e;
+            return producerCryptoBundle.encrypt(array);
         }
     }
 
@@ -218,7 +249,7 @@ public abstract class SerdeCryptoBase {
         }
 
         PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(encodedKey);
-        KeyFactory kf = KeyFactory.getInstance(KEY_FACTORY, BC);
+        KeyFactory kf = KeyFactory.getInstance(ECDH, BC);
         return kf.generatePrivate(spec);
     }
 
@@ -228,7 +259,7 @@ public abstract class SerdeCryptoBase {
         }
 
         X509EncodedKeySpec spec = new X509EncodedKeySpec(encodedKey);
-        KeyFactory kf = KeyFactory.getInstance(KEY_FACTORY, BC);
+        KeyFactory kf = KeyFactory.getInstance(ECDH, BC);
         return kf.generatePublic(spec);
     }
 
@@ -245,15 +276,7 @@ public abstract class SerdeCryptoBase {
         return bytes;
     }
 
-    private static byte[] crypt(Cipher c, byte[] plain) throws IllegalBlockSizeException, BadPaddingException {
-        return c.doFinal(plain);
-    }
-
-    private static byte[] crypt(Cipher c, byte[] plain, int offset, int len) throws IllegalBlockSizeException, BadPaddingException {
-        return c.doFinal(plain, offset, len);
-    }
-
-    public static byte[] concatenate(byte[] a, byte[] b, byte[] c, byte[] d) {
+    private static byte[] concatenate(byte[] a, byte[] b, byte[] c, byte[] d) {
         if (a != null && b != null && c != null && d != null) {
             byte[] rv = new byte[a.length + b.length + c.length + d.length];
             System.arraycopy(a, 0, rv, 0, a.length);
@@ -264,5 +287,16 @@ public abstract class SerdeCryptoBase {
         } else {
             throw new IllegalArgumentException("arrays must not be null");
         }
+    }
+    
+    private byte[] deriveAESSecretKey(PublicKey publicKey, PrivateKey privateKey) throws NoSuchAlgorithmException, InvalidKeyException {
+    	final KeyAgreement ka = KeyAgreement.getInstance(ECDH, BC);
+        ka.init(privateKey);
+        ka.doPhase(publicKey, true);
+        final HKDFBytesGenerator kDF1BytesGenerator = new HKDFBytesGenerator(new SHA256Digest());     
+        kDF1BytesGenerator.init(new HKDFParameters(ka.generateSecret(), null, INFO_BYTES));
+        final byte[] key = new byte[aesKeyLen/8];
+        kDF1BytesGenerator.generateBytes(key, 0, aesKeyLen/8);
+        return key;
     }
 }

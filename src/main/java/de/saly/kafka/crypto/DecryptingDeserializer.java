@@ -8,11 +8,12 @@ import org.apache.kafka.common.serialization.Deserializer;
 
 /**
  * This is a deserialization (for the Consumer) wrapper which adds transparent end-to-end message encryption. 
- * Its intended to be used together with {@link EncryptingSerializer}
+ * Its intended to be used together with {@link EncryptingSerializer}. Use it for the consumer.
  * <p>
  * Configuration<p>
  * <ul>
- * <li><em>crypto.rsa.privatekey.filepath</em> path on the local filesystem which hold the RSA private key (PKCS#8 format) of the consumer
+ * <li><em>crypto.publickey.filepath</em> path on the local filesystem which hold the EC public key of the producer
+ * <li><em>crypto.privatekey.filepath</em> path on the local filesystem which hold the EC private key of the consumer
  * <li><em>crypto.wrapped_deserializer</em> is the class or full qualified class name or the wrapped deserializer
  * <li><em>crypto.ignore_decrypt_failures</em> Skip message decryption on error and just pass the byte[] unencrypted (optional, default is "false"). Possible values are "true" or "false".
  * </ul>

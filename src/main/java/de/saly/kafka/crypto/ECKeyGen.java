@@ -4,19 +4,27 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.SecureRandom;
 import java.util.UUID;
 
-public class RsaKeyGen {
+import org.bouncycastle.asn1.x9.X9ECParameters;
+import org.bouncycastle.crypto.ec.CustomNamedCurves;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.jce.spec.ECParameterSpec;
+
+public class ECKeyGen {
     
     public static void main(String[] args) throws Exception {
-        int keysize = (args != null && args.length > 0) ? Integer.parseInt(args[0]) : 2048;
-        System.out.println("Keysize: "+keysize+" bits");
         String uuid = UUID.randomUUID().toString();
-        File pubKey = new File("rsa_publickey_" + keysize + "_" + uuid);
-        File privKey = new File("rsa_privatekey_" + keysize + "_" + uuid);
+        File pubKey = new File("ec_publickey_" + uuid);
+        File privKey = new File("ec_privatekey_" + uuid);
 
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-        keyGen.initialize(keysize);
+        X9ECParameters ecP = CustomNamedCurves.getByName("curve25519");
+        ECParameterSpec ecSpec=new ECParameterSpec(ecP.getCurve(), ecP.getG(),
+                ecP.getN(), ecP.getH(), ecP.getSeed());
+        
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("ECDH", new BouncyCastleProvider());
+        keyGen.initialize(ecSpec, new SecureRandom());
         KeyPair pair = keyGen.genKeyPair();
         byte[] publicKey = pair.getPublic().getEncoded();
         byte[] privateKey = pair.getPrivate().getEncoded();

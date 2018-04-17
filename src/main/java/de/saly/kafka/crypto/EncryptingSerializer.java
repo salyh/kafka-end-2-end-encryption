@@ -10,43 +10,44 @@ import org.apache.kafka.common.serialization.Serializer;
 /**
  * 
  * This is a serialization wrapper which adds message encryption. Its intended to be used together with {@link DecryptingDeserializer} 
+ * Use it for producers.
  * <p>
  * Configuration<p>
  * <ul>
- * <li><em>crypto.rsa.publickey.filepath</em> path on the local filesystem which hold the RSA public key (X.509 format) of the consumer
+ * <li><em>crypto.publickey.filepath</em> path on the local filesystem which hold the EC public key of the consumer
+ * <li><em>crypto.privatekey.filepath</em> path on the local filesystem which hold the EC private key of the producer
  * <li><em>crypto.wrapped_serializer</em> is the class or full qualified class name or the wrapped serializer
- * <li><em>crypto.hash_method</em> Type of hash generated for the AES key (optional, default is "SHA-256")
  * <li><em>crypto.new_key_msg_interval</em> Generate new AES every n messages (default is -1, that means never generate a new key)
  * </ul>
  * <p>
- * Each message is encrypted with "AES/CBC/PKCS5Padding" before its sent to Kafka. The AES key as well as the initialization vector are random.
- * The AES key is attached to the message in a RSA encrypted manner. The IV is also attached but not RSA encrypted. There is also a hash value
- * of the AES key to allow consumers caching of decrypted AES keys. Finally we have a few magic and header bytes.
+ * Each message is encrypted with AES (with a random IV) in GCM mode before its sent to Kafka.
+ * In addition to the encrypted message we add two magic bytes, the IV length as another byte and the IV itself (by default 12 bytes).
+ * That means we add a constant "overhead" of 15 bytes per message.
  * The resulting byte array looks therefore like this:
  * <p>
- * <pre>MMLLLHH..HHEEEE..EEEEIIII..IIIOOOOO....OOOOOO</pre>
+ * <pre>MMLIIII..IIIOOOOO....OOOOOO</pre>
  * <p>
  * <ul>
  * <li> MM: Two magic bytes 0xDF 0xBB to detect if this byte sequence is encrypted or not
- * <li> LLL: Three bytes indicating the length of the AES key hash, the RSA encrypted AES key and the IV
- * <li> HH..HH: AES key hash
- * <li> EE..EE: RSA encrypted AES key
- * <li> II..II: Initialization vector (if any)
+ * <li> L: One byte indicating the length of the IV
+ * <li> II..II: Initialization vector
  * <li> OO..OO: The AES encrypted original message
  * </ul>
  * <p>
- * <em>MMLLL</em> is called the encryption header and consists of 5 bytes.
+ * <em>MML</em> is called the encryption header and consists of 3 bytes.
  * <p>
  * <ul>
- * <li> M1: 0xDF
- * <li> M2: 0xBB
- * <li> L1: length of the AES key hash
- * <li> L2: RSA factor f so that f*128*8 evaluates to the RSA keysize (in bits)
- * <li> L3: length of the initialization vector in bytes (always 16 for AES CBC)
+ * <li> M1: 0xBD
+ * <li> M2: 0xDD
+ * <li> L1: length of the initialization vector in bytes
  * </ul>
  * <p>
- * RSA public/private keypair can be generated with<br>
- * <em>java -cp kafka-end-2-end-encryption-1.0.0.jar de.saly.kafka.crypto.RsaKeyGen 2048</em>
+ * EC public/private keypair can be generated with<br>
+ * <em>java -cp kafka-end-2-end-encryption-1.0.0.jar de.saly.kafka.crypto.ECKeyGen</em>
+ * <p>
+ * You will need to generate two keypairs - one for the producer and one for the consumer.
+ * To make the Diffie–Hellman work the producer needs to be configure with its private key and the public key of the consumer.
+ * The consumer needs to be configued with its private key and the public of the consumer.
  * <p>
  * <b>Note</b>: As Producers are multithreading-safe this serializer is also thread-safe
  * <p>
