@@ -61,10 +61,22 @@ public class EncryptingSerializer<T> extends SerdeCryptoBase implements Serializ
     private Serializer<T> inner;
     private final AtomicInteger msg = new AtomicInteger();
 
+    public EncryptingSerializer(){}
+
+    /**
+     * 
+     * @param inner Serializer which will be applied bevore crypting. (Can't be overwritten by config)
+     */
+    public EncryptingSerializer(Serializer<T> inner){
+        this.inner = inner;
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {
-        inner = newInstance(configs, CRYPTO_VALUE_SERIALIZER, Serializer.class);
+        if(inner == null) {
+            inner = newInstance(configs, CRYPTO_VALUE_SERIALIZER, Serializer.class);
+        }
         inner.configure(configs, isKey);
         init(Cipher.ENCRYPT_MODE, configs, isKey);
         String msgIntervalProperty = (String) configs.get(CRYPTO_NEW_KEY_MSG_INTERVAL);
