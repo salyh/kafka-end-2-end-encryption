@@ -5,7 +5,6 @@ import java.util.Map;
 import javax.crypto.Cipher;
 
 import org.apache.kafka.common.serialization.Deserializer;
-import org.apache.kafka.common.serialization.Serializer;
 
 /**
  * This is a deserialization (for the Consumer) wrapper which adds transparent end-to-end message encryption. 
