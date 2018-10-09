@@ -30,10 +30,21 @@ public class DecryptingDeserializer<T> extends SerdeCryptoBase implements Deseri
     public static final String CRYPTO_VALUE_DESERIALIZER = "crypto.wrapped_deserializer";
     private Deserializer<T> inner;
 
+    public DecryptingDeserializer(){}
+
+    /**
+     * 
+     * @param inner Deserializer which will be applied to the decrypted bytes. (Can't be overwritten by config)
+     */
+    public DecryptingDeserializer(Deserializer<T> inner){
+        this.inner = inner;
+    }
     @SuppressWarnings("unchecked")
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {
-        inner = newInstance(configs, CRYPTO_VALUE_DESERIALIZER, Deserializer.class);
+        if(inner==null) {
+            inner = newInstance(configs, CRYPTO_VALUE_DESERIALIZER, Deserializer.class);
+        }
         inner.configure(configs, isKey);
         init(Cipher.DECRYPT_MODE, configs, isKey);
     }
